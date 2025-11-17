@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClassCare - Upload Documents</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #e8eef5 0%, #f5f7fa 50%, #e8eef5 100%);
+            min-height: 100vh;
+            color: #2d3748;
+            position: relative;
+        }
+
+        /* Subtle background pattern */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(255, 255, 255, 0.2) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 50px 30px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Header */
+        .page-header {
+            text-align: center;
+            margin-bottom: 50px;
+            padding: 30px 0;
+        }
+
+        .page-header h1 {
+            font-size: 36px;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 12px;
+            letter-spacing: -0.5px;
+        }
+
+        .page-header h1 i {
+            color: #5a6c7d;
+            margin-right: 12px;
+        }
+
+        .page-header p {
+            font-size: 17px;
+            color: #718096;
+            font-weight: 400;
+        }
+
+        .back-btn {
+            position: absolute;
+            top: 24px;
+            left: 24px;
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            color: #4a5568;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            padding: 12px 20px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            font-family: 'Inter', sans-serif;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18), 0 3px 8px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.08);
+            z-index: 10;
+        }
+
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.8);
+            border-color: rgba(255, 255, 255, 0.6);
+            box-shadow: 0 8px 28px rgba(0, 0, 0, 0.25), 0 4px 12px rgba(0, 0, 0, 0.18), 0 2px 6px rgba(0, 0, 0, 0.12);
+            transform: translateY(-2px);
+        }
+
+        /* Upload Section */
+        .upload-section {
+            background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 20px;
+            padding: 50px;
+            margin-bottom: 40px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12), 0 4px 16px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+
+        .upload-area {
+            border: 2px dashed rgba(0, 0, 0, 0.15);
+            border-radius: 20px;
+            padding: 60px 40px;
+            text-align: center;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            cursor: pointer;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.06);
+        }
+
+        .upload-area:hover {
+            border-color: rgba(0, 0, 0, 0.25);
+            background: rgba(255, 255, 255, 0.4);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15), 0 4px 12px rgba(0, 0, 0, 0.1), 0 2px 6px rgba(0, 0, 0, 0.08);
+        }
+
+        .upload-area.dragover {
+            border-color: rgba(0, 0, 0, 0.3);
+            background: rgba(255, 255, 255, 0.5);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2), 0 6px 16px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .upload-icon {
+            font-size: 64px;
+            color: #a0aec0;
+            margin-bottom: 24px;
+            opacity: 0.7;
+        }
+
+        .upload-text {
+            font-size: 20px;
+            color: #2d3748;
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+
+        .upload-hint {
+            font-size: 15px;
+            color: #718096;
+            margin-bottom: 28px;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+
+        #fileInput {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .upload-btn {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            color: #4a5568;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            padding: 14px 28px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            font-family: 'Inter', sans-serif;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18), 0 3px 10px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.08);
+        }
+
+        .upload-btn:hover {
+            background: rgba(255, 255, 255, 0.9);
+            border-color: rgba(255, 255, 255, 0.7);
+            box-shadow: 0 8px 28px rgba(0, 0, 0, 0.25), 0 4px 14px rgba(0, 0, 0, 0.18), 0 2px 6px rgba(0, 0, 0, 0.12);
+            transform: translateY(-2px);
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            display: none;
+            margin-top: 28px;
+        }
+
+        .progress-container.active {
+            display: block;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 4px;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            width: 0%;
+            transition: width 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .progress-text {
+            text-align: center;
+            margin-top: 12px;
+            color: #718096;
+            font-size: 14px;
+            font-weight: 400;
+        }
+
+        /* Documents List */
+        .documents-section {
+            background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12), 0 4px 16px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+
+        .section-title {
+            font-size: 26px;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 28px;
+            letter-spacing: -0.3px;
+        }
+
+        .documents-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 24px;
+        }
+
+        .document-card {
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 16px;
+            padding: 24px;
+            transition: all 0.3s ease;
+            position: relative;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15), 0 3px 10px rgba(0, 0, 0, 0.1), 0 1px 4px rgba(0, 0, 0, 0.08);
+        }
+
+        .document-card:hover {
+            background: rgba(255, 255, 255, 0.8);
+            border-color: rgba(255, 255, 255, 0.7);
+            box-shadow: 0 10px 32px rgba(0, 0, 0, 0.22), 0 5px 16px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.12);
+            transform: translateY(-3px);
+        }
+
+        .document-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 18px;
+        }
+
+        .document-title {
+            font-size: 17px;
+            font-weight: 600;
+            color: #2d3748;
+            flex: 1;
+            margin-right: 12px;
+            line-height: 1.5;
+        }
+
+        .delete-doc-btn {
+            background: rgba(254, 242, 242, 0.7);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            color: #dc2626;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            padding: 8px 14px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-width: 40px;
+            min-height: 40px;
+            z-index: 100;
+            position: relative;
+            pointer-events: auto;
+            flex-shrink: 0;
+            font-weight: 500;
+            box-shadow: 0 4px 14px rgba(220, 38, 38, 0.18), 0 2px 6px rgba(220, 38, 38, 0.12), 0 1px 3px rgba(220, 38, 38, 0.08);
+        }
+
+        .delete-doc-btn:hover {
+            background: rgba(254, 242, 242, 0.9);
+            border-color: rgba(255, 255, 255, 0.6);
+            box-shadow: 0 8px 24px rgba(220, 38, 38, 0.28), 0 4px 12px rgba(220, 38, 38, 0.18), 0 2px 6px rgba(220, 38, 38, 0.12);
+            transform: translateY(-2px);
+        }
+
+        .document-info {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .document-info-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            color: #718096;
+        }
+
+        .document-info-item i {
+            width: 18px;
+            color: #a0aec0;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: #a0aec0;
+        }
+
+        .empty-state i {
+            font-size: 72px;
+            margin-bottom: 24px;
+            opacity: 0.5;
+        }
+
+        .empty-state p {
+            font-size: 17px;
+            font-weight: 400;
+        }
+
+        /* Notification */
+        .notification {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            padding: 16px 24px;
+            border-radius: 16px;
+            color: #2d3748;
+            font-weight: 500;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.18), 0 4px 16px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
+            z-index: 1000;
+            animation: slideIn 0.4s ease-out;
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .notification.success {
+            background: rgba(240, 253, 250, 0.8);
+            border-color: rgba(255, 255, 255, 0.6);
+            color: #065f46;
+        }
+
+        .notification.error {
+            background: rgba(254, 242, 242, 0.8);
+            border-color: rgba(255, 255, 255, 0.6);
+            color: #991b1b;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 30px 20px;
+            }
+
+            .page-header h1 {
+                font-size: 28px;
+            }
+
+            .upload-section {
+                padding: 40px 24px;
+            }
+
+            .documents-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .back-btn {
+                top: 18px;
+                left: 18px;
+                padding: 10px 16px;
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a href="/" class="back-btn">
+        <i class="fas fa-arrow-left"></i>
+        <span>Back to Chat</span>
+    </a>
+
+    <div class="container">
+        <div class="page-header">
+            <h1><i class="fas fa-cloud-upload-alt"></i> Upload Documents</h1>
+            <p>Add your documents to enhance ClassCare's knowledge base</p>
+        </div>
+
+        <!-- Upload Section -->
+        <div class="upload-section">
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                </div>
+                <div class="upload-text">Drag & Drop your document here</div>
+                <div class="upload-hint">or click to browse files</div>
+                <div class="file-input-wrapper">
+                    <input type="file" id="fileInput" accept=".pdf,.txt,.doc,.docx">
+                    <label for="fileInput" class="upload-btn">
+                        <i class="fas fa-folder-open"></i>
+                        <span>Choose File</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="progress-container" id="progressContainer">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-text" id="progressText">Uploading...</div>
+            </div>
+        </div>
+
+        <!-- Documents List -->
+        <div class="documents-section">
+            <h2 class="section-title">Your Documents</h2>
+            <div class="documents-grid" id="documentsGrid">
+                {% if documents %}
+                    {% for doc in documents %}
+                    <div class="document-card" data-doc-id="{{ doc.id }}">
+                        <div class="document-header">
+                            <div class="document-title">{{ doc.title }}</div>
+                            <button class="delete-doc-btn" type="button" onclick="deleteDocument('{{ doc.id }}', event)">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                        <div class="document-info">
+                            <div class="document-info-item">
+                                <i class="fas fa-file"></i>
+                                <span>{{ doc.file_type|upper }}</span>
+                            </div>
+                            {% if doc.num_chunks %}
+                            <div class="document-info-item">
+                                <i class="fas fa-cubes"></i>
+                                <span>{{ doc.num_chunks }} chunks</span>
+                            </div>
+                            {% endif %}
+                            <div class="document-info-item">
+                                <i class="fas fa-calendar"></i>
+                                <span>{{ doc.uploaded_at|date:"M d, Y" }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <p>No documents uploaded yet</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+
+        // Drag and drop handlers
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileUpload(files[0]);
+            }
+        });
+
+        uploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileUpload(e.target.files[0]);
+            }
+        });
+
+        async function handleFileUpload(file) {
+            const formData = new FormData();
+            formData.append('document', file);
+            formData.append('title', file.name);
+
+            progressContainer.classList.add('active');
+            progressFill.style.width = '30%';
+            progressText.textContent = 'Uploading file...';
+
+            try {
+                const response = await fetch('/api/upload-document/', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: formData
+                });
+
+                progressFill.style.width = '70%';
+                progressText.textContent = 'Processing document...';
+
+                const data = await response.json();
+
+                progressFill.style.width = '100%';
+                progressText.textContent = 'Complete!';
+
+                if (data.success) {
+                    showNotification(data.message || 'Document uploaded successfully!', 'success');
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1500);
+                } else {
+                    showNotification(data.error || 'Upload failed', 'error');
+                    progressContainer.classList.remove('active');
+                }
+            } catch (error) {
+                showNotification('Error: ' + error.message, 'error');
+                progressContainer.classList.remove('active');
+            }
+        }
+
+        async function deleteDocument(docId, event) {
+            event.stopPropagation();
+            
+            if (!confirm('Are you sure you want to delete this document? This will also remove it from the knowledge base.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/delete-document/${docId}/`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken')
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showNotification('Document deleted successfully', 'success');
+                    const card = document.querySelector(`[data-doc-id="${docId}"]`);
+                    if (card) {
+                        card.style.animation = 'fadeOut 0.3s ease-out';
+                        setTimeout(() => {
+                            card.remove();
+                            const grid = document.getElementById('documentsGrid');
+                            if (grid.children.length === 0) {
+                                grid.innerHTML = `
+                                    <div class="empty-state">
+                                        <i class="fas fa-inbox"></i>
+                                        <p>No documents uploaded yet</p>
+                                    </div>
+                                `;
+                            }
+                        }, 300);
+                    }
+                } else {
+                    showNotification(data.error || 'Failed to delete document', 'error');
+                }
+            } catch (error) {
+                showNotification('Error: ' + error.message, 'error');
+            }
+        }
+
+        function showNotification(message, type = 'success') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.style.animation = 'slideIn 0.4s ease-out reverse';
+                setTimeout(() => {
+                    notification.remove();
+                }, 400);
+            }, 3000);
+        }
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        // Add fadeOut animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes fadeOut {
+                from {
+                    opacity: 1;
+                    transform: scale(1);
+                }
+                to {
+                    opacity: 0;
+                    transform: scale(0.95);
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>
