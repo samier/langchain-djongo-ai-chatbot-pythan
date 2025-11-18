@@ -243,8 +243,20 @@ class LangChainRAGService:
                 
                 # Try to connect to existing collection or create new one
                 try:
+                    # Check if pymilvus is available before trying to use Milvus
+                    try:
+                        import pymilvus
+                        print(f"✅ pymilvus is installed (version: {pymilvus.__version__})")
+                    except ImportError:
+                        print("❌ pymilvus is not installed!")
+                        print("   Please install it with: pip install pymilvus==2.3.4")
+                        print("   Or install all requirements: pip install -r requirements.txt")
+                        self.vector_store = None
+                        return
+                    
                     # Connect to Milvus - will create collection if it doesn't exist
                     # Port should be string for connection_args
+                    # auto_id is True by default in Milvus, don't need to specify
                     self.vector_store = Milvus(
                         embedding_function=self.local_embeddings,
                         collection_name=collection_name,
@@ -254,10 +266,26 @@ class LangChainRAGService:
                         }
                     )
                     print(f"✅ Connected to Milvus vector store (collection: {collection_name})")
+                except ImportError as e:
+                    if "pymilvus" in str(e).lower():
+                        print(f"❌ pymilvus import error: {e}")
+                        print("   Please install pymilvus: pip install pymilvus==2.3.4")
+                        print("   Or install all requirements: pip install -r requirements.txt")
+                    else:
+                        print(f"⚠️ Import error: {e}")
+                    self.vector_store = None
                 except Exception as e:
-                    print(f"⚠️ Could not connect to Milvus: {e}")
-                    print(f"   Make sure Milvus is running on {milvus_host}:{milvus_port}")
-                    print("   Or install Milvus: https://milvus.io/docs/install_standalone-docker.md")
+                    error_str = str(e)
+                    if "pymilvus" in error_str.lower() or "Could not import" in error_str:
+                        print(f"❌ pymilvus is not installed or not available: {error_str}")
+                        print("   Please install pymilvus: pip install pymilvus==2.3.4")
+                        print("   Or install all requirements: pip install -r requirements.txt")
+                        print("   After installing, restart your Django server")
+                    else:
+                        print(f"⚠️ Could not connect to Milvus: {e}")
+                        print(f"   Make sure Milvus is running on {milvus_host}:{milvus_port}")
+                        print("   Note: LangChain uses the gRPC port (default: 19530), not the HTTP port")
+                        print("   Or install Milvus: https://milvus.io/docs/install_standalone-docker.md")
                     self.vector_store = None
             except Exception as e:
                 print(f"❌ Error connecting to Milvus vector store: {e}")
@@ -475,14 +503,18 @@ class LangChainRAGService:
             chunks = text_splitter.split_documents(documents)
             
             # Add document_id to metadata for tracking (if provided)
-            if document_id:
-                for chunk in chunks:
-                    if chunk.metadata is None:
-                        chunk.metadata = {}
+            # Note: Don't add 'id' to metadata - Milvus will auto-generate primary keys when auto_id=True
+            import uuid
+            for i, chunk in enumerate(chunks):
+                if chunk.metadata is None:
+                    chunk.metadata = {}
+                # Don't add 'id' to metadata - let Milvus handle primary keys automatically
+                # Only add document_id for tracking which document the chunk belongs to
+                if document_id:
                     chunk.metadata['document_id'] = str(document_id)
-                    # Ensure source is set
-                    if 'source' not in chunk.metadata:
-                        chunk.metadata['source'] = file_path
+                # Ensure source is set
+                if 'source' not in chunk.metadata:
+                    chunk.metadata['source'] = file_path
             
             # Check if Milvus is available
             if Milvus is None:
@@ -501,6 +533,18 @@ class LangChainRAGService:
                 # Create new Milvus collection from documents using LOCAL embeddings
                 print(f"📦 Creating new Milvus collection '{collection_name}' with {len(chunks)} chunks using LOCAL embeddings...")
                 try:
+                    # Check if pymilvus is available
+                    try:
+                        import pymilvus
+                    except ImportError:
+                        return {
+                            'success': False,
+                            'error': 'pymilvus is not installed. Please install it with: pip install pymilvus==2.3.4\nOr install all requirements: pip install -r requirements.txt\nAfter installing, restart your Django server.'
+                        }
+                    
+                    # Create Milvus collection - use drop_old=True to ensure clean creation
+                    # This will delete any existing collection with mismatched schema
+                    print(f"⚠️  Dropping old collection if it exists to ensure clean schema...")
                     self.vector_store = Milvus.from_documents(
                         documents=chunks,
                         embedding=embeddings_to_use,
@@ -508,25 +552,150 @@ class LangChainRAGService:
                         connection_args={
                             "host": milvus_host,
                             "port": milvus_port
-                        }
+                        },
+                        drop_old=True  # Force delete old collection with wrong schema
                     )
+                    # Flush to ensure data is immediately available
+                    if hasattr(self.vector_store, '_collection') and self.vector_store._collection:
+                        self.vector_store._collection.flush()
+                        print(f"✅ Flushed collection to ensure immediate availability")
                     print(f"✅ Created new Milvus collection with {len(chunks)} chunks (using local embeddings)")
+                except ImportError as e:
+                    if "pymilvus" in str(e).lower():
+                        return {
+                            'success': False,
+                            'error': f'pymilvus is not installed or not available: {str(e)}\n\nPlease install pymilvus:\n  pip install pymilvus==2.3.4\n\nOr install all requirements:\n  pip install -r requirements.txt\n\nAfter installing, restart your Django server.'
+                        }
+                    else:
+                        return {
+                            'success': False,
+                            'error': f'Import error: {str(e)}. Make sure all dependencies are installed: pip install -r requirements.txt'
+                        }
                 except Exception as e:
-                    return {
-                        'success': False,
-                        'error': f'Failed to create Milvus collection: {str(e)}. Make sure Milvus is running on {milvus_host}:{milvus_port}'
-                    }
+                    error_str = str(e)
+                    if "pymilvus" in error_str.lower() or "Could not import" in error_str:
+                        return {
+                            'success': False,
+                            'error': f'pymilvus is not installed or not available: {error_str}\n\nPlease install pymilvus:\n  pip install pymilvus==2.3.4\n\nOr install all requirements:\n  pip install -r requirements.txt\n\nAfter installing, restart your Django server.'
+                        }
+                    else:
+                        return {
+                            'success': False,
+                            'error': f'Failed to create Milvus collection: {str(e)}\n\nMake sure:\n1. Milvus is running on {milvus_host}:{milvus_port}\n2. Note: LangChain uses the gRPC port (default: 19530), not the HTTP port\n3. Check your MILVUS_HOST and MILVUS_PORT settings in .env file'
+                        }
             else:
                 # Add documents to existing Milvus collection
                 try:
+                    # Get count before adding
+                    old_count = 0
+                    try:
+                        if hasattr(self.vector_store, '_collection') and self.vector_store._collection:
+                            old_count = self.vector_store._collection.num_entities
+                    except:
+                        pass
+                    
+                    # Try adding documents without explicit IDs first (if collection has auto_id=True)
                     self.vector_store.add_documents(chunks)
+                    
+                    # Force flush and verify to ensure data is immediately available
+                    try:
+                        if hasattr(self.vector_store, '_collection') and self.vector_store._collection:
+                            collection = self.vector_store._collection
+                            
+                            # Flush the collection and wait for completion
+                            flush_result = collection.flush()
+                            print(f"✅ Flushed collection (flush IDs: {flush_result})")
+                            
+                            # Wait a moment for flush to complete
+                            import time
+                            time.sleep(1)  # Increased wait time
+                            
+                            # Verify the count increased
+                            new_count = collection.num_entities
+                            expected_count = old_count + len(chunks)
+                            print(f"✅ Collection now has {new_count} entities (was {old_count}, added {len(chunks)}, expected {expected_count})")
+                            
+                            if new_count < expected_count:
+                                print(f"⚠️ Warning: Count mismatch! Expected {expected_count} but got {new_count}")
+                                print(f"   Retrying flush...")
+                                collection.flush()
+                                time.sleep(1)
+                                new_count = collection.num_entities
+                                print(f"   After retry: {new_count} entities")
+                            
+                            # Ensure collection is loaded for search
+                            try:
+                                collection.load()
+                                print(f"✅ Collection loaded and ready for search")
+                            except Exception as load_err:
+                                # Collection might already be loaded, that's okay
+                                pass
+                    except Exception as flush_err:
+                        print(f"⚠️ Warning: Could not flush/verify collection: {flush_err}")
+                        print(f"   Trying alternative method...")
+                        # Try direct pymilvus connection as fallback
+                        try:
+                            from pymilvus import connections, Collection
+                            connections.connect(host=milvus_host, port=milvus_port)
+                            direct_collection = Collection(collection_name)
+                            direct_collection.flush()
+                            import time
+                            time.sleep(1)
+                            new_count = direct_collection.num_entities
+                            print(f"✅ Flushed using direct connection - now has {new_count} entities")
+                            connections.disconnect("default")
+                        except Exception as e2:
+                            print(f"⚠️ Alternative flush also failed: {e2}")
+                            print(f"   Data may take a few moments to be available")
+                    
                     print(f"✅ Added {len(chunks)} chunks to existing Milvus collection (using local embeddings)")
                 except Exception as e:
-                    print(f"⚠️ Error adding documents to Milvus: {str(e)}")
-                    return {
-                        'success': False,
-                        'error': f'Failed to add documents to Milvus: {str(e)}'
-                    }
+                    error_str = str(e)
+                    # If the error is about IDs, the collection was created with auto_id=False
+                    if "ids" in error_str.lower() or "auto_id" in error_str.lower() or "valid ids" in error_str.lower():
+                        print("⚠️ Collection requires explicit IDs. Using add_texts with IDs...")
+                        try:
+                            # Use add_texts method which supports ids parameter
+                            import uuid
+                            texts = [chunk.page_content for chunk in chunks]
+                            metadatas = [chunk.metadata for chunk in chunks]
+                            ids = [chunk.metadata.get('id', str(uuid.uuid4())) for chunk in chunks]
+                            
+                            # Use add_texts with ids
+                            self.vector_store.add_texts(texts=texts, metadatas=metadatas, ids=ids)
+                            
+                            # Force flush and wait for completion to ensure data is immediately available
+                            try:
+                                if hasattr(self.vector_store, '_collection') and self.vector_store._collection:
+                                    # Flush the collection
+                                    self.vector_store._collection.flush()
+                                    print(f"✅ Flushed collection to ensure immediate availability")
+                                    
+                                    # Also try to load the collection to make it searchable
+                                    try:
+                                        self.vector_store._collection.load()
+                                        print(f"✅ Collection loaded and ready for search")
+                                    except Exception as load_err:
+                                        print(f"⚠️ Note: Collection load skipped (may already be loaded): {load_err}")
+                            except Exception as flush_err:
+                                print(f"⚠️ Warning: Could not flush collection: {flush_err}")
+                                print(f"   Data may take a few moments to be available")
+                            
+                            print(f"✅ Added {len(chunks)} chunks to existing Milvus collection with explicit IDs")
+                        except Exception as e2:
+                            error_str2 = str(e2)
+                            # If add_texts doesn't work, provide helpful error message
+                            print(f"⚠️ Error adding documents with IDs: {error_str2}")
+                            return {
+                                'success': False,
+                                'error': f'Failed to add documents to Milvus: {error_str2}\n\nThis collection was created with auto_id=False, which requires explicit IDs.\n\nSolution: Delete the existing Milvus collection "{collection_name}" and let it recreate with auto_id=True.\n\nYou can delete it using:\n1. Milvus console/UI\n2. Or restart Milvus and delete the collection manually\n3. Or use pymilvus: from pymilvus import connections, utility; connections.connect(...); utility.drop_collection("{collection_name}")'
+                            }
+                    else:
+                        print(f"⚠️ Error adding documents to Milvus: {str(e)}")
+                        return {
+                            'success': False,
+                            'error': f'Failed to add documents to Milvus: {str(e)}'
+                        }
             
             return {
                 'success': True,
@@ -735,73 +904,119 @@ Helpful Answer:"""
         """
         try:
             if not self.vector_store:
+                print(f"⚠️ Vector store is not initialized, skipping deletion for document {document_id}")
                 return {
-                    'success': False,
-                    'error': 'Vector store is not initialized'
+                    'success': True,  # Return success to not block document deletion
+                    'message': 'Vector store not initialized (no chunks to delete)',
+                    'deleted_count': 0
                 }
             
-            # Delete chunks from Milvus using metadata filter expression
+            # Get the Milvus collection directly for more reliable deletion
+            collection = None
+            if hasattr(self.vector_store, '_collection') and self.vector_store._collection:
+                collection = self.vector_store._collection
+            elif hasattr(self.vector_store, 'collection') and self.vector_store.collection:
+                collection = self.vector_store.collection
+            
+            if not collection:
+                # Try to get collection using pymilvus directly
+                try:
+                    from pymilvus import connections, Collection
+                    milvus_host = getattr(settings, 'MILVUS_HOST', 'localhost')
+                    milvus_port = getattr(settings, 'MILVUS_PORT', '19530')
+                    collection_name = getattr(settings, 'MILVUS_COLLECTION_NAME', 'classcare_documents')
+                    
+                    # Connect to Milvus
+                    connections.connect(host=milvus_host, port=milvus_port, alias="default")
+                    collection = Collection(collection_name)
+                except Exception as conn_e:
+                    print(f"⚠️ Could not connect to Milvus collection: {conn_e}")
+                    return {
+                        'success': True,  # Return success to not block document deletion
+                        'message': f'Could not connect to Milvus collection (may not exist): {str(conn_e)}',
+                        'deleted_count': 0
+                    }
+            
+            # Build filter expression for Milvus
+            # Milvus filter expression format: 'document_id == "value"'
+            filter_expr = f'document_id == "{document_id}"'
+            
+            # First, try to count how many chunks exist for this document
+            deleted_count = 0
             try:
-                # Milvus supports deleting by filter expression
-                # The expression format: 'document_id == "value"'
-                filter_expr = f'document_id == "{document_id}"'
+                # Query to count chunks with this document_id
+                from pymilvus import utility
+                results = collection.query(
+                    expr=filter_expr,
+                    output_fields=["document_id"],
+                    limit=10000  # Large limit to get all chunks
+                )
+                deleted_count = len(results) if results else 0
+                print(f"🔍 Found {deleted_count} chunks for document {document_id}")
+            except Exception as query_e:
+                print(f"⚠️ Could not query chunks count: {query_e}")
+                # Continue with deletion anyway
+            
+            # Delete chunks from Milvus using filter expression
+            try:
+                # Use direct collection delete method
+                delete_result = collection.delete(expr=filter_expr)
+                print(f"🗑️ Delete operation initiated for document {document_id}: {delete_result}")
                 
-                # Delete using filter expression
-                self.vector_store.delete(expr=filter_expr)
-                print(f"✅ Deleted chunks from Milvus for document {document_id}")
+                # Flush the collection to ensure deletion is persisted
+                try:
+                    flush_result = collection.flush()
+                    print(f"✅ Flushed collection after deletion: {flush_result}")
+                    
+                    # Wait a moment for flush to complete
+                    import time
+                    time.sleep(0.5)
+                except Exception as flush_e:
+                    print(f"⚠️ Warning: Could not flush collection after deletion: {flush_e}")
+                    # Continue anyway, flush might not be critical
                 
+                print(f"✅ Successfully deleted chunks from Milvus for document {document_id}")
                 return {
                     'success': True,
                     'message': f'Successfully deleted chunks from Milvus for document {document_id}',
-                    'deleted_count': 'unknown'  # Milvus doesn't return count directly
+                    'deleted_count': deleted_count
                 }
-            except Exception as e:
-                print(f"⚠️ Error deleting from Milvus: {e}")
-                # Try alternative: search first to verify chunks exist
+            except Exception as delete_e:
+                error_str = str(delete_e)
+                print(f"⚠️ Error deleting from Milvus: {error_str}")
+                
+                # Try alternative method using LangChain wrapper
                 try:
-                    # Search to check if chunks exist
-                    search_results = self.vector_store.similarity_search(
-                        query="test",  # Dummy query
-                        k=100,
-                        expr=filter_expr
-                    )
-                    
-                    if not search_results:
-                        print(f"ℹ️ No chunks found for document ID: {document_id}")
+                    if hasattr(self.vector_store, 'delete'):
+                        self.vector_store.delete(expr=filter_expr)
+                        print(f"✅ Deleted using LangChain wrapper for document {document_id}")
                         return {
                             'success': True,
-                            'message': 'No chunks found for this document (may have been already deleted)',
-                            'deleted_count': 0
+                            'message': f'Successfully deleted chunks from Milvus for document {document_id}',
+                            'deleted_count': deleted_count
                         }
-                    
-                    # Try delete again with different syntax
-                    try:
-                        # Some Milvus versions use different syntax
-                        from pymilvus import Collection
-                        collection = self.vector_store._collection
-                        if collection:
-                            collection.delete(expr=filter_expr)
-                            print(f"✅ Deleted chunks from Milvus collection for document {document_id}")
-                            return {
-                                'success': True,
-                                'message': f'Successfully deleted chunks from Milvus for document {document_id}',
-                                'deleted_count': len(search_results)
-                            }
-                    except Exception as e3:
-                        return {
-                            'success': False,
-                            'error': f'Failed to delete from Milvus: {str(e3)}. Please check Milvus connection and collection permissions.'
-                        }
-                except Exception as e2:
+                except Exception as wrapper_e:
+                    print(f"⚠️ LangChain wrapper delete also failed: {wrapper_e}")
+                
+                # If no chunks were found, consider it a success
+                if deleted_count == 0:
+                    print(f"ℹ️ No chunks found for document ID: {document_id} (may have been already deleted)")
                     return {
-                        'success': False,
-                        'error': f'Failed to delete from Milvus: {str(e2)}. Make sure Milvus is running and collection exists.'
+                        'success': True,
+                        'message': 'No chunks found for this document (may have been already deleted)',
+                        'deleted_count': 0
                     }
+                
+                return {
+                    'success': False,
+                    'error': f'Failed to delete from Milvus: {error_str}. Please check Milvus connection and collection permissions.'
+                }
                     
         except Exception as e:
             print(f"❌ Error in delete_document_from_vector_store: {e}")
             import traceback
             traceback.print_exc()
+            # Return success=False but with a clear error message
             return {
                 'success': False,
                 'error': f'Error deleting from vector store: {str(e)}'

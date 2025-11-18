@@ -1,3 +1,17 @@
+# ============================================================================
+# Python Package Requirements - Install in Virtual Environment (venv)
+# ============================================================================
+#
+# Installation Instructions:
+#   1. Create virtual environment: python3.10 -m venv venv
+#   2. Activate virtual environment:
+#      - Linux/Mac: source venv/bin/activate
+#      - Windows: venv\Scripts\activate
+#   3. Install packages: pip install -r requirements.txt
+#
+# Note: These packages are installed in the virtual environment, NOT system-wide
+# ============================================================================
+
 # Django Framework
 Django==4.2.7
 
@@ -41,4 +55,6 @@ python-dotenv==1.0.0
 requests==2.31.0
 Pillow==10.1.0
 
+# Production Server
+gunicorn==21.2.0
 

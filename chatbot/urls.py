@@ -20,5 +20,5 @@ urlpatterns = [
     # Document endpoints
     path('api/upload-document/', views.upload_document, name='upload_document'),
     path('api/documents/', views.list_documents, name='list_documents'),
-    path('api/documents/<uuid:document_id>/delete/', views.delete_document, name='delete_document'),
+    path('api/delete-document/<uuid:document_id>/', views.delete_document, name='delete_document'),
 ]
