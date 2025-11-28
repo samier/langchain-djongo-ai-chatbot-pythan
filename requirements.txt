@@ -1,0 +1,60 @@
+# ============================================================================
+# Python Package Requirements - Install in Virtual Environment (venv)
+# ============================================================================
+#
+# Installation Instructions:
+#   1. Create virtual environment: python3.10 -m venv venv
+#   2. Activate virtual environment:
+#      - Linux/Mac: source venv/bin/activate
+#      - Windows: venv\Scripts\activate
+#   3. Install packages: pip install -r requirements.txt
+#
+# Note: These packages are installed in the virtual environment, NOT system-wide
+# ============================================================================
+
+# Django Framework
+Django==4.2.7
+
+# LangChain and AI dependencies
+langchain==0.1.0
+langchain-community==0.0.10
+langchain-openai==0.0.2
+langchain-core==0.1.10
+
+# OpenAI
+openai==1.6.1
+
+# Hugging Face (optional, for alternative LLMs)
+transformers==4.36.2
+sentence-transformers==2.2.2
+
+# Fix Keras 3 compatibility issue with Transformers
+# Use Keras 2.x which is compatible with transformers 4.36.2
+keras<3.0
+
+# Vector Store - Milvus
+pymilvus==2.3.4
+
+# Document Processing
+pypdf==3.17.4
+python-docx==1.1.0
+docx2txt==0.8
+openpyxl==3.1.2
+unstructured==0.11.8
+
+# Additional utilities
+tiktoken==0.5.2
+
+# Database (if using PostgreSQL)
+# psycopg2-binary==2.9.9
+
+# Environment variables
+python-dotenv==1.0.0
+
+# API and Web
+requests==2.31.0
+Pillow==10.1.0
+
+# Production Server
+gunicorn==21.2.0
+
